@@ -50,7 +50,7 @@ llm:
 mcp_servers:
   qieman:
     headers:
-      x-api-key: "你的且慢 MCP API 密钥"
+      x-api-key: "你的且慢 MCP API 密钥"  # 从 https://qieman.com/mcp 获取
 ```
 
 #### 4. 启动
@@ -97,6 +97,8 @@ FundAnalyst/
 - 本地部署的模型
 
 ### MCP 配置
+
+且慢 MCP API 密钥获取地址: https://qieman.com/mcp
 
 | 配置项 | 说明 |
 |--------|------|
