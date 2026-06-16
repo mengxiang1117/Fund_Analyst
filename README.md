@@ -24,6 +24,7 @@
 
 ```bash
 # 克隆或下载项目
+git clone https://github.com/mengxiang1117/Fund_Analyst.git
 cd Fund_Analyst
 
 # 安装依赖
