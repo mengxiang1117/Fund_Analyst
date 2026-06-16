@@ -63,10 +63,10 @@ python web_app.py
 
 ### 方式二：使用打包版本 (exe)
 
-从 [Releases](releases) 页面下载 `FundAnalyst.zip`，解压后：
+从 [Releases](https://github.com/mengxiang1117/Fund_Analyst/releases) 页面下载 `Fund_Analyst.zip`，解压后：
 
 ```
-FundAnalyst/
+Fund_Analyst/
 ├── FundAnalyst.exe       # 主程序
 ├── config.example.yaml   # 配置模板
 └── config.yaml           # 首次运行自动生成，需编辑
