@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基金分析助手</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  /* === LIGHT THEME (default) === */
+  :root, [data-theme="light"] {
+    --midnight: #f5f2ec;
+    --deep: #faf8f4;
+    --panel: #ffffff;
+    --surface: #f0ece4;
+    --gold: #b8943e;
+    --gold-light: #c8a45e;
+    --gold-dim: rgba(184,148,62,.12);
+    --gold-glow: rgba(184,148,62,.05);
+    --text: #1a1a2e;
+    --text-secondary: #5a5e72;
+    --text-muted: #8a8fa0;
+    --border: rgba(184,148,62,.12);
+    --border-strong: rgba(184,148,62,.22);
+    --danger: #c0392b;
+    --danger-dim: rgba(192,57,43,.1);
+    --user-bg: linear-gradient(135deg, #e8e4dc, #ddd8ce);
+    --bot-bg: #f7f5f0;
+    --radius: 6px;
+  }
+
+  /* === DARK THEME === */
+  [data-theme="dark"] {
+    --midnight: #080b16;
+    --deep: #0d1025;
+    --panel: #111530;
+    --surface: #161a38;
+    --gold: #c8a45e;
+    --gold-light: #e2c97e;
+    --gold-dim: rgba(200,164,94,.15);
+    --gold-glow: rgba(200,164,94,.06);
+    --text: #d8dae8;
+    --text-secondary: #7a7e9a;
+    --text-muted: #4a4e6a;
+    --border: rgba(200,164,94,.1);
+    --border-strong: rgba(200,164,94,.2);
+    --danger: #e84057;
+    --danger-dim: rgba(232,64,87,.12);
+    --user-bg: linear-gradient(135deg, #1a2855, #1e3060);
+    --bot-bg: #12162e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-weight: 400;
+    background: var(--midnight);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+    transition: background .3s, color .3s;
+  }
+
+  /* === NOISE OVERLAY === */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* === SIDEBAR === */
+  .sidebar {
+    width: 280px;
+    background: var(--deep);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 1px; height: 100%;
+    background: linear-gradient(to bottom, transparent, var(--gold-dim), transparent);
+  }
+
+  .sidebar-header {
+    padding: 28px 24px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .theme-toggle {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--panel);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .2s;
+    flex-shrink: 0;
+  }
+  .theme-toggle:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+  .theme-toggle svg { width: 16px; height: 16px; }
+  .theme-toggle .icon-sun { display: none; }
+  .theme-toggle .icon-moon { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+  .brand-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--deep);
+    box-shadow: 0 2px 12px rgba(200,164,94,.25);
+  }
+
+  .brand-text h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 17px;
+    color: var(--gold-light);
+    letter-spacing: 1px;
+  }
+
+  .brand-text p {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .new-chat-btn {
+    margin: 16px 20px;
+    padding: 10px 16px;
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: .5px;
+    transition: all .25s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .new-chat-btn:hover {
+    background: var(--gold-dim);
+    border-color: var(--gold);
+    box-shadow: 0 0 20px rgba(200,164,94,.1);
+  }
+
+  .new-chat-btn svg { width: 14px; height: 14px; }
+
+  .session-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 12px;
+  }
+
+  .session-list::-webkit-scrollbar { width: 4px; }
+  .session-list::-webkit-scrollbar-track { background: transparent; }
+  .session-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+  .session-item {
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    transition: all .2s;
+    border: 1px solid transparent;
+    position: relative;
+  }
+
+  .session-item:hover {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .session-item.active {
+    background: var(--gold-dim);
+    color: var(--gold-light);
+    border-color: var(--border-strong);
+  }
+
+  .session-item.active::before {
+    content: '';
+    position: absolute;
+    left: -1px; top: 8px; bottom: 8px;
+    width: 2px;
+    background: var(--gold);
+    border-radius: 1px;
+  }
+
+  .session-title {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Delete */
+  .session-delete {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: all .15s;
+  }
+  .session-item:hover .session-delete { display: flex; align-items: center; justify-content: center; }
+  .session-delete:hover { color: var(--danger); background: var(--danger-dim); }
+  .session-delete svg { width: 13px; height: 13px; }
+
+  /* === MAIN === */
+  .main { flex: 1; display: flex; flex-direction: column; position: relative; }
+
+  /* Grid background */
+  .main::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity: .3;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
+  }
+
+  /* Glow orb */
+  .main::after {
+    content: '';
+    position: absolute;
+    top: -200px; right: -100px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(200,164,94,.04), transparent 60%);
+    pointer-events: none;
+  }
+
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .chat-area::-webkit-scrollbar { width: 6px; }
+  .chat-area::-webkit-scrollbar-track { background: transparent; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+  .chat-container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+
+  /* === MESSAGES === */
+  .message {
+    display: flex;
+    margin-bottom: 64px;
+    animation: msgIn .4s ease both;
+  }
+
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .message.user { justify-content: flex-end; }
+
+  .message .avatar {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+    letter-spacing: .5px;
+  }
+
+  .message.user .avatar {
+    background: linear-gradient(135deg, #2a4080, #1e3060);
+    color: #7aa2e8;
+    margin-left: 12px;
+    order: 2;
+    border: 1px solid rgba(122,162,232,.2);
+  }
+
+  .message.bot .avatar {
+    background: linear-gradient(135deg, var(--gold-dim), rgba(200,164,94,.08));
+    color: var(--gold);
+    margin-right: 12px;
+    border: 1px solid var(--border-strong);
+  }
+
+  .message .bubble {
+    max-width: 78%;
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.75;
+    word-break: break-word;
+    position: relative;
+  }
+
+  .message.user .bubble {
+    background: var(--user-bg);
+    border: 1px solid rgba(122,162,232,.15);
+    border-bottom-right-radius: 3px;
+  }
+
+  .message.bot .bubble {
+    background: var(--bot-bg);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 3px;
+  }
+
+  .bubble p { margin: 0 0 10px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble strong { color: var(--gold-light); font-weight: 600; }
+  .bubble em { color: var(--text-secondary); }
+
+  .bubble table {
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+    width: 100%;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .bubble th {
+    background: var(--gold-dim);
+    color: var(--gold-light);
+    font-weight: 500;
+    text-align: left;
+    padding: 8px 12px;
+    border: 1px solid var(--border-strong);
+    font-size: 12px;
+    letter-spacing: .5px;
+  }
+
+  .bubble td {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+
+  .bubble tr:hover td { background: var(--gold-glow); }
+
+  .bubble code {
+    background: rgba(200,164,94,.08);
+    color: var(--gold-light);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .bubble pre {
+    background: rgba(0,0,0,.35);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 10px 0;
+    border: 1px solid var(--border);
+  }
+
+  .bubble pre code { background: none; padding: 0; color: var(--text); }
+
+  /* === INPUT === */
+  .input-area {
+    border-top: 1px solid var(--border);
+    padding: 20px 28px 24px;
+    background: linear-gradient(to top, var(--deep), transparent);
+    position: relative;
+    z-index: 1;
+  }
+
+  .input-wrapper {
+    max-width: 780px;
+    margin: 0 auto;
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+  }
+
+  #msg-input {
+    flex: 1;
+    padding: 13px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Noto Sans SC', sans-serif;
+    outline: none;
+    resize: none;
+    min-height: 46px;
+    max-height: 120px;
+    transition: border-color .25s, box-shadow .25s;
+  }
+
+  #msg-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(200,164,94,.08), 0 0 30px rgba(200,164,94,.06);
+  }
+
+  #msg-input::placeholder { color: var(--text-muted); }
+
+  #send-btn {
+    padding: 13px 28px;
+    background: linear-gradient(135deg, var(--gold), #b8943e);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    transition: all .25s;
+    white-space: nowrap;
+    box-shadow: 0 2px 12px rgba(200,164,94,.2);
+  }
+
+  #send-btn:hover {
+    box-shadow: 0 4px 20px rgba(200,164,94,.35);
+    transform: translateY(-1px);
+  }
+
+  #send-btn:active { transform: translateY(0); }
+
+  #send-btn:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* === WELCOME === */
+  .welcome {
+    text-align: center;
+    padding: 100px 24px 60px;
+    animation: fadeUp .6s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .welcome-icon {
+    width: 72px; height: 72px;
+    margin: 0 auto 28px;
+    background: linear-gradient(135deg, var(--gold-dim), rgba(200,164,94,.05));
+    border: 1px solid var(--border-strong);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .welcome-icon::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(200,164,94,.2), transparent);
+    z-index: -1;
+    filter: blur(12px);
+  }
+
+  .welcome-icon svg { width: 32px; height: 32px; color: var(--gold); }
+
+  .welcome h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--gold-light);
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+  }
+
+  .welcome p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 300;
+  }
+
+  .quick-questions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 32px;
+  }
+
+  .quick-questions button {
+    padding: 10px 20px;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 24px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    transition: all .25s;
+  }
+
+  .quick-questions button:hover {
+    border-color: var(--gold);
+    color: var(--gold-light);
+    background: var(--gold-dim);
+    box-shadow: 0 0 20px rgba(200,164,94,.08);
+    transform: translateY(-2px);
+  }
+
+  /* === TYPING === */
+  .typing-indicator { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
+  .typing-indicator span {
+    width: 6px; height: 6px;
+    background: var(--gold);
+    border-radius: 50%;
+    animation: typingPulse 1.4s ease-in-out infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: .15s; }
+  .typing-indicator span:nth-child(3) { animation-delay: .3s; }
+  @keyframes typingPulse {
+    0%, 70%, 100% { opacity: .2; transform: scale(.85); }
+    35% { opacity: 1; transform: scale(1); }
+  }
+
+  .error-text { color: var(--danger); }
+
+  /* === MODAL === */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(4,6,16,.4);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    animation: fadeIn .2s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal-box {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+    padding: 36px 32px 28px;
+    min-width: 340px;
+    text-align: center;
+    animation: modalIn .3s ease;
+    box-shadow: 0 24px 60px rgba(0,0,0,.4);
+  }
+
+  @keyframes modalIn { from { opacity: 0; transform: scale(.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+  .modal-icon {
+    width: 52px; height: 52px;
+    margin: 0 auto 20px;
+    background: var(--danger-dim);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-icon svg { width: 24px; height: 24px; color: var(--danger); }
+  .modal-title { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  .modal-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 28px; line-height: 1.6; }
+  .modal-actions { display: flex; gap: 12px; justify-content: center; }
+  .modal-actions button {
+    padding: 10px 32px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    font-family: 'Noto Sans SC', sans-serif;
+    transition: all .2s;
+  }
+  .modal-cancel {
+    background: var(--surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-strong) !important;
+  }
+  .modal-cancel:hover { background: var(--border-strong); color: var(--text); }
+  .modal-confirm { background: var(--danger); color: #fff; box-shadow: 0 2px 12px rgba(232,64,87,.25); }
+  .modal-confirm:hover { box-shadow: 0 4px 20px rgba(232,64,87,.4); transform: translateY(-1px); }
+
+  /* === SETTINGS MODAL === */
+  .settings-modal {
+    min-width: 440px;
+    max-width: 90vw;
+    text-align: left;
+    padding: 0;
+  }
+
+  .settings-header {
+    padding: 24px 28px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .settings-header-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--gold-dim);
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .settings-header-icon svg { width: 18px; height: 18px; color: var(--gold); }
+
+  .settings-header-text h3 {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .settings-header-text p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .settings-body {
+    padding: 24px 28px 8px;
+  }
+
+  .settings-section {
+    margin-bottom: 20px;
+  }
+
+  .settings-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .settings-section-title svg { width: 12px; height: 12px; }
+
+  .form-row {
+    margin-bottom: 10px;
+  }
+
+  .form-row label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+
+  .form-row input {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--midnight);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'JetBrains Mono', 'Noto Sans SC', monospace;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .form-row input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(200,164,94,.08);
+  }
+  .form-row input::placeholder { color: var(--text-muted); }
+
+  .input-with-toggle {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  .input-with-toggle input {
+    flex: 1;
+    padding-right: 38px;
+  }
+  .toggle-vis {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color .15s;
+  }
+  .toggle-vis:hover { color: var(--gold); }
+  .toggle-vis svg { width: 14px; height: 14px; }
+
+  .settings-footer {
+    padding: 16px 28px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .settings-footer button {
+    padding: 9px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    font-family: 'Noto Sans SC', sans-serif;
+    transition: all .2s;
+  }
+  .btn-save {
+    background: linear-gradient(135deg, var(--gold), #b8943e);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(200,164,94,.2);
+  }
+  .btn-save:hover { box-shadow: 0 4px 16px rgba(200,164,94,.35); transform: translateY(-1px); }
+  .btn-save:disabled { opacity: .4; cursor: wait; transform: none; }
+  .btn-cancel {
+    background: var(--surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-strong) !important;
+  }
+  .btn-cancel:hover { background: var(--border-strong); }
+
+  .save-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    background: var(--panel);
+    border: 1px solid var(--gold);
+    border-radius: 10px;
+    color: var(--gold-light);
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    z-index: 10000;
+    animation: toastIn .3s ease, toastOut .3s ease 2s forwards;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .save-toast svg { width: 14px; height: 14px; color: #34d399; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(10px); } }
+
+  /* === SIDEBAR FOOTER === */
+  .sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: .5px;
+  }
+
+  .sidebar-footer .dot {
+    width: 6px; height: 6px;
+    background: #34d399;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(52,211,153,.4);
+  }
+
+  .settings-btn {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .2s;
+  }
+  .settings-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+  .settings-btn svg { width: 14px; height: 14px; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="brand">
+      <div class="brand-icon">F</div>
+      <div class="brand-text">
+        <h1>Fund Analyst</h1>
+        <p>AI Assistant</p>
+      </div>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+  <button class="new-chat-btn" onclick="newSession()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    新对话
+  </button>
+  <div class="session-list" id="session-list"></div>
+  <div class="sidebar-footer">
+    <button class="settings-btn" onclick="openSettings()" title="配置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <span class="dot"></span>
+    系统在线
+  </div>
+</div>
+
+<div class="main">
+  <div class="chat-area" id="chat-area">
+    <div class="chat-container" id="chat-container">
+      <div class="welcome">
+        <div class="welcome-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <h2>Fund Analyst</h2>
+        <p>输入基金名称或代码，获取专业分析与投资建议</p>
+        <div class="quick-questions">
+          <button onclick="askQuick(this)">沪深300指数基金推荐</button>
+          <button onclick="askQuick(this)">医药主题基金有哪些</button>
+          <button onclick="askQuick(this)">国投瑞银白银期货A怎么样</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="input-area">
+    <div class="input-wrapper">
+      <textarea id="msg-input" placeholder="询问基金相关信息..." rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+      <button id="send-btn" onclick="sendMessage()">发送</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let sessions = [];
+let currentSessionId = null;
+let isSending = false;
+
+const TRASH_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`;
+const WARNING_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+
+// Theme
+function getTheme() { return localStorage.getItem('fund_theme') || 'light'; }
+function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); localStorage.setItem('fund_theme', t); }
+applyTheme(getTheme());
+function toggleTheme() { applyTheme(getTheme() === 'light' ? 'dark' : 'light'); }
+
+// Settings
+const SETTINGS_GEAR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+const KEY_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`;
+const SERVER_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`;
+const CHECK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+async function openSettings() {
+  const config = await fetch('/api/config').then(r => r.json());
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'settings-overlay';
+  overlay.innerHTML = `<div class="modal-box settings-modal">
+    <div class="settings-header">
+      <div class="settings-header-icon">${SETTINGS_GEAR}</div>
+      <div class="settings-header-text">
+        <h3>配置设置</h3>
+        <p>config.yaml — LLM &amp; MCP 配置</p>
+      </div>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section">
+        <div class="settings-section-title">${SERVER_ICON} LLM 配置</div>
+        <div class="form-row">
+          <label>API Base URL</label>
+          <input type="text" id="cfg-base-url" placeholder="https://...">
+        </div>
+        <div class="form-row">
+          <label>API Key</label>
+          <div class="input-with-toggle">
+            <input type="password" id="cfg-api-key" placeholder="sk-...">
+            <button type="button" class="toggle-vis" onclick="toggleVis('cfg-api-key', this)" title="显示/隐藏">
+              <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Model Name</label>
+          <input type="text" id="cfg-model" placeholder="model-name">
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">${KEY_ICON} MCP 配置</div>
+        <div class="form-row">
+          <label>Qieman x-api-key</label>
+          <div class="input-with-toggle">
+            <input type="password" id="cfg-x-api-key" placeholder="SC6TaiisvXrgijUQo9pHOw">
+            <button type="button" class="toggle-vis" onclick="toggleVis('cfg-x-api-key', this)" title="显示/隐藏">
+              <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button class="btn-cancel" onclick="closeSettings()">取消</button>
+      <button class="btn-save" id="save-config-btn" onclick="saveConfig()">保存配置</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = e => { if (e.target === overlay) closeSettings(); };
+
+  // 通过 JS 注入值，避免 key 出现在 HTML 源码中
+  document.getElementById('cfg-base-url').value = config.llm?.base_url || '';
+  document.getElementById('cfg-api-key').value = config.llm?.api_key || '';
+  document.getElementById('cfg-model').value = config.llm?.model_name || '';
+  document.getElementById('cfg-x-api-key').value = config.mcp?.x_api_key || '';
+}
+
+function closeSettings() {
+  const overlay = document.getElementById('settings-overlay');
+  if (overlay) overlay.remove();
+}
+
+async function saveConfig() {
+  const btn = document.getElementById('save-config-btn');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+
+  const payload = {
+    llm: {
+      base_url: document.getElementById('cfg-base-url').value.trim(),
+      api_key: document.getElementById('cfg-api-key').value.trim(),
+      model_name: document.getElementById('cfg-model').value.trim(),
+    },
+    x_api_key: document.getElementById('cfg-x-api-key').value.trim(),
+  };
+
+  try {
+    const res = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.ok) {
+      closeSettings();
+      showSaveToast();
+    }
+  } catch (e) {
+    alert('保存失败: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '保存配置';
+  }
+}
+
+function toggleVis(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const isOpen = input.type === 'text';
+  input.type = isOpen ? 'password' : 'text';
+  btn.querySelector('.eye-open').style.display = isOpen ? 'none' : 'block';
+  btn.querySelector('.eye-closed').style.display = isOpen ? 'block' : 'none';
+}
+
+function showSaveToast() {
+  const toast = document.createElement('div');
+  toast.className = 'save-toast';
+  toast.innerHTML = `${CHECK_ICON} 配置已保存，已重新加载`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
+}
+
+async function init() {
+  sessions = await fetch('/api/sessions').then(r => r.json());
+  currentSessionId = localStorage.getItem('fund_current_session') || null;
+  if (sessions.length === 0) { await newSession(); }
+  else {
+    if (!currentSessionId || !sessions.find(s => s.id === currentSessionId)) currentSessionId = sessions[0].id;
+    renderSessionList();
+    await loadSession(currentSessionId);
+  }
+}
+init();
+
+async function newSession() {
+  if (isSending) {
+    const ok = await showConfirmModal('新建对话', '当前对话正在输出中，切换后将中断回复，确定要新建对话吗？');
+    if (!ok) return;
+    isSending = false;
+    document.getElementById('send-btn').disabled = false;
+  }
+
+  const res = await fetch('/api/session/new', { method: 'POST' });
+  const data = await res.json();
+  sessions.unshift({ id: data.session_id, title: '新对话', created_at: new Date().toISOString() });
+  currentSessionId = data.session_id;
+  localStorage.setItem('fund_current_session', currentSessionId);
+  renderSessionList();
+  renderWelcome();
+}
+
+async function switchSession(sid) {
+  if (isSending) {
+    const ok = await showConfirmModal('切换对话', '当前对话正在输出中，切换后将中断回复，确定要切换吗？');
+    if (!ok) return;
+    isSending = false;
+    document.getElementById('send-btn').disabled = false;
+  }
+  currentSessionId = sid;
+  localStorage.setItem('fund_current_session', sid);
+  renderSessionList();
+  await loadSession(sid);
+}
+
+async function loadSession(sid) {
+  const requestSessionId = sid;
+  const data = await fetch(`/api/session/${sid}`).then(r => r.json());
+  if (currentSessionId !== requestSessionId) return;
+  if (data.error) { renderWelcome(); return; }
+  renderMessages(data.messages || []);
+}
+
+function showConfirmModal(title, desc) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal-box">
+      <div class="modal-icon">${WARNING_SVG}</div>
+      <div class="modal-title">${title}</div>
+      <div class="modal-desc">${desc}</div>
+      <div class="modal-actions">
+        <button class="modal-cancel">取消</button>
+        <button class="modal-confirm">删除</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.modal-cancel').onclick = () => { overlay.remove(); resolve(false); };
+    overlay.querySelector('.modal-confirm').onclick = () => { overlay.remove(); resolve(true); };
+    overlay.onclick = e => { if (e.target === overlay) { overlay.remove(); resolve(false); } };
+  });
+}
+
+async function confirmDelete(sid, e) {
+  e.stopPropagation();
+  const ok = await showConfirmModal('删除对话', '此操作不可恢复，确定要删除该对话吗？');
+  if (!ok) return;
+  await fetch(`/api/session/${sid}`, { method: 'DELETE' });
+  sessions = sessions.filter(s => s.id !== sid);
+  if (currentSessionId === sid) {
+    if (sessions.length > 0) {
+      currentSessionId = sessions[0].id;
+      localStorage.setItem('fund_current_session', currentSessionId);
+      await loadSession(currentSessionId);
+    } else { await newSession(); return; }
+  }
+  renderSessionList();
+}
+
+function renderSessionList() {
+  const list = document.getElementById('session-list');
+  list.innerHTML = sessions.map(s =>
+    `<div class="session-item ${s.id===currentSessionId?'active':''}" onclick="switchSession('${s.id}')">
+      <span class="session-title">${escHtml(s.title)}</span>
+      <button class="session-delete" onclick="confirmDelete('${s.id}',event)" title="删除">${TRASH_SVG}</button>
+    </div>`
+  ).join('');
+}
+
+function renderWelcome() {
+  document.getElementById('chat-container').innerHTML = `<div class="welcome"><div class="welcome-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div><h2>Fund Analyst</h2><p>输入基金名称或代码，获取专业分析与投资建议</p><div class="quick-questions"><button onclick="askQuick(this)">沪深300指数基金推荐</button><button onclick="askQuick(this)">医药主题基金有哪些</button><button onclick="askQuick(this)">国投瑞银白银期货A怎么样</button></div></div>`;
+}
+
+function renderMessages(messages) {
+  const container = document.getElementById('chat-container');
+  if (!messages.length) { renderWelcome(); return; }
+  container.innerHTML = messages.map(m => {
+    const isBot = m.role === 'bot';
+    const avatar = isBot ? 'AI' : '你';
+    return `<div class="message ${m.role}"><div class="avatar">${avatar}</div><div class="bubble">${isBot ? marked.parse(m.text) : escHtml(m.text)}</div></div>`;
+  }).join('');
+  scrollToBottom();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function scrollToBottom() {
+  const area = document.getElementById('chat-area');
+  area.scrollTop = area.scrollHeight;
+}
+
+function isNearBottom() {
+  const area = document.getElementById('chat-area');
+  return area.scrollHeight - area.scrollTop - area.clientHeight < 60;
+}
+
+function askQuick(btn) {
+  if (isSending) return;
+  document.getElementById('msg-input').value = btn.textContent;
+  sendMessage();
+}
+
+async function sendMessage() {
+  if (isSending) return;
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = '46px';
+
+  const welcome = document.querySelector('.welcome');
+  if (welcome) welcome.remove();
+
+  const session = sessions.find(s => s.id === currentSessionId);
+  if (session && session.title === '新对话') {
+    session.title = text.slice(0, 20) + (text.length > 20 ? '...' : '');
+    renderSessionList();
+  }
+
+  appendMessage('user', text);
+
+  isSending = true;
+  document.getElementById('send-btn').disabled = true;
+  const sendSessionId = currentSessionId;
+  const botDiv = appendMessage('bot', '<div class="typing-indicator"><span></span><span></span><span></span></div>');
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, session_id: sendSessionId })
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const data = JSON.parse(payload);
+          if (data.error) {
+            botDiv.querySelector('.bubble').innerHTML = `<span class="error-text">${escHtml(data.error)}</span>`;
+          } else if (data.text) {
+            fullText += data.text;
+            botDiv.querySelector('.bubble').innerHTML = marked.parse(fullText);
+            if (isNearBottom()) scrollToBottom();
+          }
+        } catch {}
+      }
+    }
+  } catch (e) {
+    if (currentSessionId === sendSessionId) {
+      botDiv.querySelector('.bubble').innerHTML = `<span class="error-text">请求失败: ${escHtml(e.message)}</span>`;
+    }
+  } finally {
+    if (currentSessionId === sendSessionId) {
+      isSending = false;
+      document.getElementById('send-btn').disabled = false;
+    }
+  }
+}
+
+function appendMessage(role, html) {
+  const container = document.getElementById('chat-container');
+  const avatar = role === 'user' ? '你' : 'AI';
+  const div = document.createElement('div');
+  div.className = `message ${role}`;
+  div.innerHTML = `<div class="avatar">${avatar}</div><div class="bubble">${role==='bot'?html:escHtml(html)}</div>`;
+  container.appendChild(div);
+  scrollToBottom();
+  return div;
+}
+
+const msgInput = document.getElementById('msg-input');
+msgInput.addEventListener('input', () => autoResize(msgInput));
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+</script>
+</body>
+</html>

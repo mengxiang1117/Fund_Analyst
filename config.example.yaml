@@ -1,0 +1,22 @@
+# 基金分析助手配置文件
+# 复制此文件为 config.yaml 并填入你的配置信息
+
+# LLM 配置 (OpenAI 兼容接口)
+llm:
+  # API 密钥 - 从你的 LLM 提供商获取
+  api_key: "your-api-key-here"
+  # API 基础 URL
+  base_url: "https://openai.com/v1"
+  # 模型名称
+  model_name: "your-model-name"
+
+# MCP 服务器配置
+mcp_servers:
+  qieman:
+    # 且慢 MCP 服务配置
+    transport: streamable_http
+    url: "https://stargate.yingmi.com/mcp/v2"
+    headers:
+      Accept: "application/json, text/event-stream"
+      # 且慢 API 密钥 - 从 https://qieman.com/mcp 获取
+      x-api-key: "your-qieman-api-key-here"
