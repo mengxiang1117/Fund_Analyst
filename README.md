@@ -24,7 +24,7 @@
 
 ```bash
 # 克隆或下载项目
-cd fund_anagement_assistant
+cd Fund_Analyst
 
 # 安装依赖
 pip install -r requirements.txt
@@ -126,9 +126,9 @@ Fund_Analyst/
 ### 项目结构
 
 ```
-fund_anagement_assistant/
+Fund_Analyst/
 ├── web_app.py              # FastAPI 主应用
-├── qieman_mcp.py            # Qieman MCP Agent 封装
+├── qieman_mcp.py           # Qieman MCP Agent 封装
 ├── config.yaml             # 配置文件 (用户创建)
 ├── config.example.yaml     # 配置模板
 ├── requirements.txt        # Python 依赖
